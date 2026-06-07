@@ -11,6 +11,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 st.set_page_config(page_title="RAG Search Engine", page_icon="📚", layout="centered")
 st.title("RAGgle")
+error_container = st.empty()
 st.caption("Stop digging through documents. Start searching in human language.")
 
 @st.cache_resource
@@ -22,6 +23,12 @@ def load_vector_db():
 
     loader = PyPDFDirectoryLoader("papers/")
     documents = loader.load()
+
+    if not documents:
+        # This pushes the error to the top billboard, safely away from spinners
+        error_container.error("Error: Found 0 pages of text! Either 'papers/' is empty, the terminal is in the wrong folder(cd to the correct folder lol).")
+        st.stop()
+
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     chunks = text_splitter.split_documents(documents)
 
