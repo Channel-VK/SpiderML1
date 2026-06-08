@@ -13,6 +13,7 @@ st.set_page_config(page_title="RAG Search Engine", page_icon="📚", layout="cen
 st.title("RAGgle")
 error_container = st.empty()
 st.caption("Stop digging through documents. Start searching in human language.")
+compare_mode = st.toggle("Enable Multi-Paper Comparison Mode")
 
 @st.cache_resource
 def load_vector_db():
@@ -43,8 +44,7 @@ def load_llm():
     api_key = os.getenv("GOOGLE_API_KEY")
     return ChatGoogleGenerativeAI(
         model="gemini-3.5-flash",
-        temperature=1,  # Low temp so it doesn't hallucinate facts
-        max_tokens=1024,
+        temperature=1,
         api_key=api_key
     )
 
@@ -72,15 +72,28 @@ if user_input := st.chat_input("Ask any question about the papers..."):
             docs = retriever.invoke(user_input)
             context_text = "\n\n".join([doc.page_content for doc in docs])
 
-            template = """
-            You are an expert AI research assistant. Use the following pieces of retrieved context to answer the user's question. 
-            If you don't know the answer based strictly on the context, just say 'I cannot find the answer in the provided NLP papers.' 
-            Do not hallucinate or use outside knowledge.
+            if compare_mode:
+                template = """
+                            You are an expert AI research reviewer. The user is asking a question that spans multiple NLP papers. 
+                            Using the retrieved context below, you MUST structure your answer by explicitly comparing and contrasting how different papers address the topic. 
 
-            Context: {context}
+                            Format your response using these sections:
+                            1. Shared Concepts (What do the papers agree on?)
+                            2. Methodological Differences (How do their approaches differ?)
+                            3. Conclusion
 
-            Question: {question}
-            """
+                            Context: {context}
+                            Question: {question}
+                            """
+            else:
+                template = """
+                            You are an expert AI research assistant. Use the following pieces of retrieved context to answer the user's question. 
+                            If you don't know the answer based strictly on the context, just say 'I cannot find the answer in the provided NLP papers.' 
+                            Do not hallucinate or use outside knowledge.
+
+                            Context: {context}
+                            Question: {question}
+                            """
             prompt = ChatPromptTemplate.from_template(template)
 
             chain = prompt | llm | StrOutputParser()
